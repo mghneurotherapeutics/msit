@@ -9,7 +9,7 @@ Project Organization
     ├── LICENSE
     ├── Makefile           <- Makefile with commands like `make data` or `make train`
     ├── README.md          <- The top-level README for developers using this project.
-    ├── data			   <- fMRI & eeg data folder according to BIDS. EEG is in the spirit of BIDS, fMRI is compliant.
+    ├── data               <- fMRI & eeg data folder according to BIDS. EEG is in the spirit of BIDS, fMRI is compliant.
     │   ├── derivatives    <- Contains pre-processed and transformed versions of the data.
     │
     ├── docs               <- A default Sphinx project; see sphinx-doc.org for details
