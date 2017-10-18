@@ -4,6 +4,7 @@ import pickle
 import matplotlib.pyplot as plt
 from mne.io import Raw
 from mne import read_epochs
+import numpy as np
 
 
 def make_eeg_prep_derivatives_folder(datapath):
@@ -125,3 +126,50 @@ def visually_verify_epochs(epochs, ar_epochs, ylim=(-15, 15)):
     return ar_epochs
 
 
+def extract_itis(df):
+
+    df['iti'] = 0
+
+    # Get the indices where there was a previous iti
+    iti_ix = np.where(np.roll(df.trial_type, 1) == 'fixation')[0]
+
+    # Get the iti duration values
+    itis = np.array(df[df.trial_type == 'fixation'].duration)
+
+    # Ignore the wrap around
+    if df.trial_type.as_matrix()[-1] == 'fixation':
+        itis = np.delete(itis, 0)
+        iti_ix = np.delete(iti_ix, 0)
+
+    # update the datframe
+    df.loc[iti_ix, 'iti'] = itis
+
+    return df
+
+
+def encode_trial_type_sequence(df):
+
+    df['trial_type_sequence'] = 'cc'
+
+    for seq in ['ci', 'ic', 'ii']:
+        prev_ix = np.roll(df.trial_type.str.startswith(seq[0]), 1)
+        curr_ix = df.trial_type.str.startswith(seq[1])
+        seq_ix = np.where(np.logical_and(prev_ix, curr_ix))[0]
+        df.loc[seq_ix, 'trial_type_sequence'] = seq
+
+    df.loc[0, 'trial_type_sequence'] = np.NaN
+
+    return df
+
+
+def encode_post_error(df):
+
+    df['post_error'] = 0
+    post_error_ix = np.where(np.roll(df.error, 1) == 1)[0]
+
+    # Ignore potential wraparound from last trial
+    if len(post_error_ix) != 0 and post_error_ix[0] == 0:
+        post_error_ix = np.delete(post_error_ix, 0)
+
+    df.loc[post_error_ix, 'post_error'] = 1
+    return df
