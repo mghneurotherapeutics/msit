@@ -99,7 +99,7 @@ def visually_verify_epochs(epochs, ar_epochs, ylim=(-15, 15)):
     :param ylim: y axis limits for butterfly plots.
     :type ylim: tuple of two floats
 
-    :returns: ar_epochs -- The
+    :returns: ar_epochs -- The autorjected epochs with updated bad channels.
     """
 
     epochs.crop(epochs.times[0] + 1, epochs.times[-1] - 1)
@@ -109,10 +109,10 @@ def visually_verify_epochs(epochs, ar_epochs, ylim=(-15, 15)):
 
         # crop and average re-reference for visualization
         ar_viz_epochs = ar_epochs.copy().crop(ar_epochs.times[0] + 1,
-                                              ar_epochs.times[-1] + 1)
+                                              ar_epochs.times[-1] - 1)
 
         # before-after autoreject comparison butterfly plots
-        epochs.plot(ylim=ylim, spatial_colors=True)
+        epochs.average().plot(ylim=ylim, spatial_colors=True)
         plt.title('No AutoReject')
         ar_viz_epochs.average().plot(ylim=ylim, spatial_colors=True)
         plt.title('AutoReject')
@@ -123,4 +123,5 @@ def visually_verify_epochs(epochs, ar_epochs, ylim=(-15, 15)):
         ok = raw_input('OK to move on? (enter y or n):')
 
     return ar_epochs
+
 
