@@ -1,10 +1,40 @@
 from grabbit import Layout
 import os
+import glob
 import pickle
-import matplotlib.pyplot as plt
 from mne.io import Raw
 from mne import read_epochs
 import numpy as np
+import pandas as pd
+import matplotlib.pyplot as plt
+import seaborn as sns
+import matplotlib.patches as patches
+from mne.preprocessing import create_eog_epochs, create_ecg_epochs
+
+sns.set(style='white', font_scale=1.5)
+
+CH_NAMES = ['Fp1', 'Fpz', 'Fp2',
+             'AF7', 'AF3', 'AFz',
+             'AF4', 'AF8', 'F7',
+             'F5', 'F3', 'F1', 'Fz',
+             'F2', 'F4', 'F6',
+             'F8', 'FT9', 'FT7',
+             'FC5', 'FC3', 'FC1',
+             'FCz', 'FC2', 'FC4',
+             'FC6', 'FT8', 'FT10',
+             'T9', 'T7', 'C5', 'C3',
+             'C1', 'Cz', 'C2', 'C4',
+             'C6', 'T8', 'T10',
+             'TP9', 'TP7', 'CP5',
+             'CP3', 'CP1', 'CPz',
+             'CP2', 'CP4', 'CP6',
+             'TP8', 'TP10', 'P9',
+             'P7', 'P5', 'P3',
+             'P1', 'Pz', 'P2', 'P4',
+             'P6', 'P8', 'P10',
+             'PO7', 'PO3', 'P0z',
+             'PO4', 'PO8', 'O1',
+             'Oz', 'O2', 'Iz']
 
 
 def make_eeg_prep_derivatives_folder(datapath):
@@ -70,25 +100,36 @@ def write_bad_channels(subject, mne_object):
             fid.write('%s\n' % bad)
 
 
-def load_epochs(subject, epo_type, layout):
+# Epochs
 
-    epoch_file = layout.get(subject=subject,
-                            derivative='eeg_preprocessing',
-                            extensions='%s-epo.fif' % epo_type)
-    ar_file = layout.get(subject=subject,
-                         derivative='eeg_preprocessing',
-                         extensions='%s_ar.pkl' % epo_type)
-    epochs = read_epochs(epoch_file[0].filename, verbose=False)
-    with open(ar_file[0].filename, 'r') as inp:
-        ar = pickle.load(inp)
+def load_epochs(subject, layout):
+
+    epoch_files = layout.get(subject=subject,
+                             derivative='eeg_preprocessing',
+                             extensions='uncleaned-epo.fif')
+    ar_files = layout.get(subject=subject,
+                          derivative='eeg_preprocessing',
+                          extensions='ar.pkl')
+    epochs = [read_epochs(f.filename, verbose=False) for f in epoch_files]
+    ar = [pickle.load(open(f.filename, 'r')) for f in ar_files]
 
     # apply autoreject correction to the data
-    ar_epochs = ar.transform(epochs)
+    ar_epochs = [ar.transform(epoch) for epoch in epochs]
 
     return epochs, ar_epochs
 
 
-def visually_verify_epochs(epochs, ar_epochs, ylim=(-15, 15)):
+def plot_evoked_butterfly(epochs, config, ylim=(-15, 15)):
+
+    fig, axs = plt.subplots(1, 2, figsize=(24, 8))
+    for i, epo_type in enumerate(config['epoch_types']):
+        epochs[i].average().plot(ylim=ylim, spatial_colors=True,
+                                 axes=axs[i])
+        axs[i].set_title('%s locked' % epo_type)
+    return fig
+
+
+def visually_verify_epochs(subject, epochs, config, ylim=(-15, 15)):
     """ Iteratively plots epochs with and without autoreject cleaning
     and average re-referencing and allows bad channel selection until
     satisfied.
@@ -100,30 +141,228 @@ def visually_verify_epochs(epochs, ar_epochs, ylim=(-15, 15)):
     :param ylim: y axis limits for butterfly plots.
     :type ylim: tuple of two floats
 
-    :returns: ar_epochs -- The autorjected epochs with updated bad channels.
+    :returns: ar_epochs -- The autorejected epochs with updated bad channels.
     """
 
-    epochs.crop(epochs.times[0] + 1, epochs.times[-1] - 1)
+    # crop for visualization
+    epochs = [epochs[i].copy().crop(config['epoch_times'][i][0],
+                                    config['epoch_times'][i][1])
+              for i in range(len(epochs))]
 
     ok = 'n'
     while ok != 'y':
 
-        # crop and average re-reference for visualization
-        ar_viz_epochs = ar_epochs.copy().crop(ar_epochs.times[0] + 1,
-                                              ar_epochs.times[-1] - 1)
+        # average re-reference
+        avg = [epoch.copy().set_eeg_reference().apply_proj()
+               for epoch in epochs]
 
-        # before-after autoreject comparison butterfly plots
-        epochs.average().plot(ylim=ylim, spatial_colors=True)
-        plt.title('No AutoReject')
-        ar_viz_epochs.average().plot(ylim=ylim, spatial_colors=True)
-        plt.title('AutoReject')
+        # visualize evoked butterfly
+        plot_evoked_butterfly(avg, config)
+        plt.suptitle(subject)
 
         # plot corrected epochs for bad channel updating
-        ar_epochs.plot(block=True)
+        epochs[0].plot(block=True)
+        epochs[1].info['bads'] = epochs[0].info['bads']
 
         ok = raw_input('OK to move on? (enter y or n):')
 
-    return ar_epochs
+    return epochs[0].info['bads']
+
+
+def extract_bad_ch_group_info(pipeline_root, ch_names):
+
+    # construct dictionary that will turn into bad ch info dataframe
+    bad_ch_info = {}
+    for ch in ch_names:
+        bad_ch_info[ch] = []
+    bad_ch_info['participant_id'] = []
+
+    # iterate through subject folders
+    subject_dirs = glob.glob('%s/sub-*' % pipeline_root)
+    for sd in subject_dirs:
+
+        bad_ch_info['participant_id'].append(sd[-5:])
+
+        # retrieve the bad channels
+        with open('%s/bad_chs.txt' % sd, 'r') as fid:
+            bad_chs = fid.read().splitlines()
+
+        # fill in indicators for each channel if bad or not
+        for ch in ch_names:
+            if ch in bad_chs:
+                bad_ch_info[ch].append(1)
+            else:
+                bad_ch_info[ch].append(0)
+
+    return pd.DataFrame(bad_ch_info)
+
+
+def plot_epoched_ica_artifact_info(raw, ica, subject, pipeline_root):
+
+    for i, ch in enumerate(['VEOG', 'HEOG', 'ECG']):
+        # create artifact aligned epochs
+        if 'EOG' in ch:
+            epochs = create_eog_epochs(raw, ch_name=ch)
+        else:
+            epochs = create_ecg_epochs(raw, tmin=-.5, tmax=.5)
+
+        # plot data before and after ica epoched to artifact events
+        f = ica.plot_overlay(epochs.average())
+        f.suptitle('%s %s' % (subject, ch))
+        f.savefig('%s/%s/ica/%s_%s_before_after.png' % (pipeline_root,
+                                                        subject,
+                                                        subject,
+                                                        ch))
+
+        # plot source time courses epoched to artifact events
+        f = ica.plot_sources(epochs.average(), exclude=ica.exclude)
+        f.suptitle('%s %s' % (subject, ch))
+        f.savefig('%s/%s/ica/%s_%s_components.png' % (pipeline_root,
+                                                      subject,
+                                                      subject,
+                                                      ch))
+
+
+def verify_events(events, behavior, epo_type):
+    num_eeg_events = events.shape[0]
+    if epo_type == 'response':
+        num_behavior_events = behavior[behavior.response_time.notnull()].shape[0]
+    else:
+        num_behavior_events = behavior.shape[0]
+
+    if num_eeg_events != num_behavior_events:
+        raise ValueError('Mismatching EEG & Behavior %s Events: %s EEG Events, %s Behavior Events' % (epo_type, num_eeg_events, num_behavior_events))
+
+
+def handle_event_exceptions(subject, epo_type, eeg_events, behavior_events):
+
+    if subject == 'sub-pp012':
+        if epo_type == 'stimulus':
+            behavior_events = behavior_events[1:]
+        elif epo_type == 'response':
+            eeg_events = eeg_events[1:, :]
+    else:
+        raise ValueError('Unhandled Subject Exception.')
+
+    return eeg_events, behavior_events
+
+
+def epoch_baseline_correct(epochs, baseline):
+
+    # extract data out from mne objects
+    epochs_data = epochs.get_data()
+
+    # collapse baseline along time
+    baseline = baseline.mean(axis=-1)
+
+    # subtract baseline average from every time point
+    epochs_data = np.array([arr - baseline.T for arr in epochs_data.T]).T
+
+    # replace the data in the epochs object with baseline corrected data
+    epochs._data = epochs_data
+
+    return epochs
+
+
+def plot_autoreject_summary(ar, subject, epo_type, pipeline_root, ch_names):
+    plt.figure(figsize=(24, 12))
+
+    # plot the fix Log
+    ax = plt.subplot2grid((4, 6), loc=(0, 0), rowspan=4, colspan=3)
+
+    # sub-select to good eeg channels
+    fix_log = ar.fix_log.T[ar.picks, :]
+
+    # mark bad epochs
+    if len(ar.bad_epochs_idx) > 0:
+        fix_log[:, ar.bad_epochs_idx] = 1
+
+    # re-code interpolations
+    fix_log[fix_log == 2] = -1
+
+    # heatmap with touches
+    sns.heatmap(fix_log, ax=ax, cbar=False, center=0, cmap=plt.cm.bwr)
+    ax.set_yticklabels(np.array(ch_names)[ar.picks][::-1], rotation=0)
+    ax.set_xticks([])
+    ax.set_xlabel('Epoch')
+    ax.set_title('%d Bad Epochs' % len(ar.bad_epochs_idx))
+
+    # plot the channel thresholds
+    ax = plt.subplot2grid((4, 6), loc=(0, 3), rowspan=2, colspan=3)
+    sns.distplot(np.array(ar.threshes_.values()) * 1e6, ax=ax,
+                 norm_hist=False, kde=False)
+    ax.set_ylabel('# Channels')
+    ax.set_xlabel('Amplitude Threshold')
+
+    # plot the cross-validation for k and row
+    ax = plt.subplot2grid((4, 6), loc=(2, 3), rowspan=2, colspan=3)
+
+    # extract average validation score
+    loss = ar.loss_['eeg'].mean(axis=-1)
+
+    # heatmap with touches
+    ax.matshow(loss.T * 1e6, cmap=plt.get_cmap('Blues_r'))
+    ax.set_xticks(np.arange(len(ar.consensus_percs)))
+    ax.set_yticks(np.arange(len(ar.n_interpolates)))
+    ax.set_xticklabels(ar.consensus_percs)
+    ax.set_yticklabels(ar.n_interpolates)
+    ax.set_xlabel('Consensus %')
+    ax.set_ylabel('# Interpolate')
+    ax.xaxis.set_ticks_position('bottom')
+
+    # highlight selected values
+    idx, jdx = np.unravel_index(loss.argmin(), loss.shape)
+    rect = patches.Rectangle((idx - 0.5, jdx - 0.5), 1, 1, linewidth=2,
+                             edgecolor='r', facecolor='none')
+    ax.add_patch(rect)
+
+    # save out figure
+    plt.tight_layout()
+    plt.suptitle('%s %s autoreject summary' % (subject, epo_type), fontsize=24)
+    plt.subplots_adjust(top=0.93)
+    plt.savefig('%s/%s/autoreject/%s_%s_ar_summary.png' % (pipeline_root,
+                                                           subject,
+                                                           subject,
+                                                           epo_type))
+    plt.close('all')
+
+
+def plot_bad_chs_group_summary(bad_ch_info):
+
+    plt.figure(figsize=(24, 12))
+
+    ch_data = bad_ch_info.loc[:, bad_ch_info.columns != 'participant_id']
+    bad_ch_freqs = ch_data.as_matrix().mean(axis=1)
+    subjects = bad_ch_info.participant_id.as_matrix()
+
+    freq_sorted_ix = np.argsort(bad_ch_freqs)
+    ch_data = ch_data.iloc[freq_sorted_ix, :]
+    subjects = subjects[freq_sorted_ix]
+
+    # Plot heatmap of bad channel indicators
+    ax = plt.subplot2grid((2, 2), loc=(0, 0), rowspan=2)
+    sns.heatmap(ch_data.T, xticklabels=subjects, ax=ax)
+
+    # Plot distribution of bad channel percentages
+    ax = plt.subplot2grid((2, 2), loc=(0, 1))
+    sns.distplot(bad_ch_freqs, norm_hist=False, kde=False, ax=ax)
+    ax.set_xlabel('Bad Channel %')
+    ax.set_ylabel('# Participants')
+
+    # Plot bad ch participant frequency counts
+    ax = plt.subplot2grid((2, 2), loc=(1, 1))
+
+    ch_freqs = []
+    for ch in CH_NAMES:
+        ch_freqs.append(bad_ch_info[ch].mean())
+    ax.bar(np.arange(len(ch_freqs)), ch_freqs)
+    ax.set_xticks(np.arange(len(ch_freqs)) + .5)
+    ax.set_xticklabels(CH_NAMES, rotation=90)
+    ax.set_ylabel('% of Participants')
+
+    sns.despine()
+    plt.tight_layout()
+    plt.show()
 
 
 def extract_itis(df):
