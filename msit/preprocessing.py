@@ -11,7 +11,7 @@ import seaborn as sns
 import matplotlib.patches as patches
 from mne.preprocessing import create_eog_epochs, create_ecg_epochs
 
-sns.set(style='white', font_scale=1.5)
+sns.set(style='whitegrid', font_scale=1.5)
 
 CH_NAMES = ['Fp1', 'Fpz', 'Fp2',
             'AF7', 'AF3', 'AFz',
@@ -181,11 +181,12 @@ def extract_bad_ch_group_info(pipeline_root, ch_names):
     subject_dirs = glob.glob('%s/sub-*' % pipeline_root)
     for sd in subject_dirs:
 
-        bad_ch_info['participant_id'].append(sd[-5:])
+        bad_ch_info['participant_id'].append(sd[-9:])
 
         # retrieve the bad channels
-        with open('%s/bad_chs.txt' % sd, 'r') as fid:
-            bad_chs = fid.read().splitlines()
+        f = '%s/epochs/%s_stimulus_cleaned-epo.fif' % (sd, sd[-9:])
+        epochs = read_epochs(f, verbose=False, preload=False)
+        bad_chs = epochs.info['bads']
 
         # fill in indicators for each channel if bad or not
         for ch in ch_names:
@@ -195,6 +196,34 @@ def extract_bad_ch_group_info(pipeline_root, ch_names):
                 bad_ch_info[ch].append(0)
 
     return pd.DataFrame(bad_ch_info)
+
+
+def extract_bad_epochs_group_info(pipeline_root, ch_names):
+
+    # construct dictionary that will turn into bad ch info dataframe
+    bad_epoch_info = {}
+    bad_epoch_info['participant_id'] = []
+    bad_epoch_info['epoch_type'] = []
+    bad_epoch_info['num_bad'] = []
+
+    # iterate through subject folders
+    subject_dirs = glob.glob('%s/sub-*' % pipeline_root)
+    for sd in subject_dirs:
+
+        bad_epoch_info['participant_id'] += [sd[-9:]] * 2
+
+        # retrieve the bad channels
+        for typ in ['stimulus', 'response']:
+            f = '%s/autoreject/%s_%s_ar.pkl' % (sd, sd[-9:], typ)
+            with open(f, 'r') as fid:
+                ar = pickle.load(fid)
+
+            num_bad_epochs = len(ar.bad_epochs_idx)
+            bad_epoch_info['epoch_type'].append(typ)
+            bad_epoch_info['num_bad'].append(num_bad_epochs)
+
+    df = pd.DataFrame(bad_epoch_info)
+    return df.sort_values(by='num_bad')
 
 
 def plot_epoched_ica_artifact_info(raw, ica, subject, pipeline_root):
@@ -329,7 +358,7 @@ def plot_autoreject_summary(ar, subject, epo_type, pipeline_root, ch_names):
 
 def plot_bad_chs_group_summary(bad_ch_info):
 
-    plt.figure(figsize=(24, 12))
+    fig = plt.figure(figsize=(24, 12))
 
     ch_data = bad_ch_info.loc[:, bad_ch_info.columns != 'participant_id']
     bad_ch_freqs = ch_data.as_matrix().mean(axis=1)
@@ -362,7 +391,7 @@ def plot_bad_chs_group_summary(bad_ch_info):
 
     sns.despine()
     plt.tight_layout()
-    plt.show()
+    return fig
 
 
 def extract_itis(df):
