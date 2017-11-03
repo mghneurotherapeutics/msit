@@ -1,4 +1,5 @@
 import numpy as np
+import pandas as pd
 
 
 def select_subjects(layout, modality, start=None, end=None, exclude=[]):
@@ -16,3 +17,28 @@ def select_subjects(layout, modality, start=None, end=None, exclude=[]):
     subjects = subjects[start_ix:end_ix]
 
     return [sub for sub in subjects if sub not in exclude]
+
+
+def denote_exclusions(excluded_subjects, modality, overwrite=True):
+    """ Persists excluded subjects out to file.
+
+    :param excluded_subjects: List of participants to be excluded.
+    :type epochs: list
+    :param modality: The modality subjects are being excluded based on.
+    :type modality: string
+    :param overwrite: Whether to clear existing exclusions or update
+    :type ylim: boolean
+
+    :returns: None -- Updates the participants.tsv file with the exclusions
+    """
+
+    exclusions = pd.read_csv('../data/participants.tsv', sep='\t')
+
+    # clear existing exclusions if overwrite is true
+    if overwrite:
+        exclusions['%s_exclude' % modality] = 0
+
+    for s in excluded_subjects:
+        exclusions.loc[np.where(exclusions.participant_id == s)[0],
+                       '%s_exclude' % modality] = 1
+    exclusions.to_csv('../data/participants.tsv', sep='\t', index=False)
