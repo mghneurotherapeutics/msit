@@ -8,7 +8,7 @@ def select_subjects(layout, modality, start=None, end=None, exclude=[]):
                                           modality=modality,
                                           return_type='id')))
 
-    # perform selection
+    # perform index based selection
     start_ix, end_ix = 0, len(subjects) + 1
     if start:
         start_ix = np.where(subjects == start)[0]
@@ -16,11 +16,18 @@ def select_subjects(layout, modality, start=None, end=None, exclude=[]):
         end_ix = np.where(subjects == end)[0]
     subjects = subjects[start_ix:end_ix]
 
+    # determines exclusions
+    if type(exclude) == str:
+        ex = pd.read_csv('../data/participants.tsv', sep='\t')
+        tmp1 = ex[ex['%s_exclude' % exclude] == 1].participant_id
+        tmp2 = ex[ex['behavior_%s_exclude' % exclude] == 1].participant_id
+        exclude = np.unique(list(tmp1) + list(tmp2))
+
     return [sub for sub in subjects if sub not in exclude]
 
 
 def denote_exclusions(excluded_subjects, modality, overwrite=True):
-    """ Persists excluded subjects out to file.
+    """
 
     :param excluded_subjects: List of participants to be excluded.
     :type epochs: list
