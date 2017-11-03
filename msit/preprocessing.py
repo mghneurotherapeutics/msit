@@ -441,3 +441,19 @@ def encode_post_error(df):
 
     df.loc[post_error_ix, 'post_error'] = 1
     return df
+
+
+def encode_target_location(df):
+
+    rs = []
+    for s, cr in zip(df.stimulus, df.correct_response):
+        if int(s[0]) == cr:
+            rs.append('left')
+        elif int(s[2]) == cr:
+            rs.append('right')
+        else:
+            rs.append('middle')
+
+    df['target_location'] = rs
+    return df
+
