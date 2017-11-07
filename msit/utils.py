@@ -1,5 +1,6 @@
 import numpy as np
 import pandas as pd
+import pickle
 
 
 def select_subjects(layout, modality, start=None, end=None, exclude=[]):
@@ -49,3 +50,30 @@ def denote_exclusions(excluded_subjects, modality, overwrite=True):
         exclusions.loc[np.where(exclusions.participant_id == s)[0],
                        '%s_exclude' % modality] = 1
     exclusions.to_csv('../data/participants.tsv', sep='\t', index=False)
+
+
+def drop_bad_trials(subject, behavior, epochs, layout, epo_type):
+
+    # drop non-responses from behavior
+    behavior = behavior[behavior.no_response != 1].reset_index()
+
+    # skip the first behavior response since eeg was started late
+    if subject == 'sub-pp012':
+        behavior = behavior.iloc[1:, :].reset_index()
+
+    # drop bad eeg trials from behavior
+    ar_file = layout.get(subject=subject,
+                         derivative='eeg_preprocessing',
+                         extensions='%s_ar.pkl' % epo_type)[0].filename
+    ar = pickle.load(open(ar_file, 'r'))
+    if len(ar.bad_epochs_idx) > 0:
+        behavior = behavior.drop(ar.bad_epochs_idx).reset_index()
+
+    # drop bad behavior trials from eeg and behavior
+    behavior_exclude = np.where(np.sum(behavior[['fast_rt', 'error',
+                                                 'post_error']],
+                                       axis=1))[0]
+    behavior = behavior.drop(behavior_exclude)
+    epochs.drop(behavior_exclude)
+
+    return behavior, epochs
