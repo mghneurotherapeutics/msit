@@ -13,5 +13,6 @@
   "event_types": ["condition", "laterality"],
   "condition": ["incongruent", "congruent"],
   "laterality": ["incongruent-left", "incongruent-right",
-                 "congruent-left", "congruent-right"]
+                 "congruent-left", "congruent-right"],
+  "colors": ["#e41a1c", "#377eb8"]
 }
