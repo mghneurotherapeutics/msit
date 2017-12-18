@@ -11,7 +11,7 @@ dependencies:
 - configobj=5.0.6=py27_0
 - configparser=3.5.0=py27_0
 - cycler=0.10.0=py27_0
-- dbus=1.10.20=0
+# - dbus=1.10.20=0
 - decorator=4.1.2=py27_0
 - entrypoints=0.2.3=py27_0
 - enum34=1.1.6=py27_0
@@ -22,8 +22,8 @@ dependencies:
 - functools32=3.2.3.2=py27_0
 - get_terminal_size=1.0.0=py27_0
 - glib=2.50.2=1
-- gst-plugins-base=1.8.0=0
-- gstreamer=1.8.0=0
+# - gst-plugins-base=1.8.0=0
+# - gstreamer=1.8.0=0
 - harfbuzz=0.9.39=2
 - html5lib=0.9999999=py27_0
 - icu=54.1=0
@@ -39,12 +39,12 @@ dependencies:
 - jupyter_console=5.2.0=py27_0
 - jupyter_core=4.3.0=py27_0
 - libffi=3.2.1=1
-- libgcc=5.2.0=0
+# - libgcc=5.2.0=0
 - libgfortran=3.0.0=1
 - libiconv=1.14=0
 - libpng=1.6.30=1
-- libsodium=1.0.10=0
-- libxcb=1.12=1
+# - libsodium=1.0.10=0
+#- libxcb=1.12=1
 - libxml2=2.9.4=0
 - markupsafe=1.0=py27_0
 - matplotlib=1.5.1=np111py27_0
@@ -69,7 +69,7 @@ dependencies:
 - pixman=0.34.0=0
 - prompt_toolkit=1.0.15=py27_0
 - ptyprocess=0.5.2=py27_0
-- pycairo=1.10.0=py27_0
+#- pycairo=1.10.0=py27_0
 - pyface=5.1.0=py27_0
 - pygments=2.2.0=py27_0
 - pyparsing=2.2.0=py27_0
@@ -103,7 +103,7 @@ dependencies:
 - wcwidth=0.1.7=py27_0
 - wheel=0.29.0=py27_0
 - widgetsnbextension=3.0.2=py27_0
-- zeromq=4.1.5=0
+#- zeromq=4.1.5=0
 - zlib=1.2.11=0
 - pip:
   - backports-abc==0.5
