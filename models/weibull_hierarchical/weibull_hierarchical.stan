@@ -10,15 +10,26 @@ data {
 parameters {
 
   // Group Parameters
-  real<lower=0> beta0_scale_group1;
-  real<lower=0> beta0_scale_group2;
-  real<lower=0> beta0_shape_group1;
-  real<lower=0> beta0_shape_group2;
-  real<lower=0, upper=1> beta0_shift_group;
-  real beta1_scale_group;
-  real beta1_shape_group;
-  real beta1_shift_group;
 
+  // Scale Parameters
+  real<lower=0> k_beta0_scale;
+  real<lower=0> theta_beta0_scale;
+  real mu_beta1_scale;
+  real<lower=0> sigma_beta1_scale;
+
+  // Shape Parameters
+  real<lower=0> k_beta0_shape;
+  real<lower=0> theta_beta0_shape;
+  real mu_beta1_shape;
+  real<lower=0> sigma_beta1_shape;
+
+  // Shift Parameters
+  real <lower=0, upper=1> mu_beta0_shift;
+  real <lower=0> sigma_beta0_shift;
+  real mu_beta1_shift;
+  real<lower=0> sigma_beta1_shift;
+
+  // Subject Parameters
   vector<lower=0, upper=1>[Ns] beta0_shift;
   vector[Ns] beta1_shift;
   vector<lower=0>[Ns] beta0_scale;
@@ -44,27 +55,32 @@ model {
 
   // Scale Priors
 
-  beta0_scale_group1 ~ gamma(1.8, 1.3);
-  beta0_scale_group2 ~ gamma(1.8, 0.2);
-  beta0_scale ~ gamma(beta0_scale_group1, beta0_scale_group2);
+  k_beta0_scale ~ gamma(1.8, 1.3);
+  theta_beta0_scale ~ gamma(1.8, 0.2);
+  beta0_scale ~ gamma(k_beta0_scale, theta_beta0_scale);
 
-  beta1_scale_group_mu ~ normal(0, 1);
-  // prior for group sigma should go here
-  // beta1_scale_group_sigma ~ gamma(?, ?)
-  beta1_scale_group ~ normal(beta1_scale_group_mu, 1);
+  mu_beta1_scale ~ normal(0, 1);
+  sigma_beta1_scale ~ normal(0, 1);
+  beta1_scale ~ normal(mu_beta1_scale, sigma_beta1_scale);
 
   // Shape Priors
 
-  beta0_shape_group1 ~ gamma(2.5, 1.0);
-  beta0_shape_group2 ~ gamma(2.0, 0.7);
-  beta0_shape ~ gamma(beta0_shape_group1, beta0_shape_group2);
+  k_beta0_shape ~ gamma(2.5, 1.0);
+  theta_beta0_shape ~ gamma(2.0, 0.7);
+  beta0_shape ~ gamma(k_beta0_shape, theta_beta0_shape);
 
-  beta1_shape_group_mu ~ normal(0, 1);
-  // prior for group sigma should go here
-  // beta1_shape_group_sigma ~ gamma(?, ?)
-  beta1_shape ~ normal(beta1_shape_group_mu, 1);
+  mu_beta1_shape ~ normal(0, 1);
+  sigma_beta1_shape ~ normal(0, 1);
+  beta1_shape ~ normal(mu_beta1_shape, sigma_beta1_shape);
 
   // Shift Priors
+
+  sigma_beta0_shift ~ normal(0, 1);
+  beta0_shift ~ normal(mu_beta0_shift, sigma_beta0_shift);
+
+  mu_beta1_shift ~ normal(0, 1);
+  sigma_beta1_shift ~ normal(0, 1);
+  beta1_shift ~ normal(mu_beta1_shift, sigma_beta1_shift);
 
   // Likelihood
 
