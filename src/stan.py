@@ -83,20 +83,20 @@ def plot_weibull_subject_fit(model_fit, behavior, subject, subjects):
             if c == 'congruent':
                 shape = mapp['beta0_shape'][sub_ix]
                 scale = mapp['beta0_scale'][sub_ix]
-                shift = mapp['beta0_shift'][sub_ix] * cond_rt.min()
+                shift = mapp['beta0_shift'][sub_ix]
             else:
                 shape = mapp['beta0_shape'][sub_ix] + mapp['beta1_shape'][sub_ix]
                 scale = mapp['beta0_scale'][sub_ix] + mapp['beta1_scale'][sub_ix]
-                shift = (mapp['beta0_shift'][sub_ix] + mapp['beta1_shift'][sub_ix]) * cond_rt.min()
+                shift = (mapp['beta0_shift'][sub_ix] + mapp['beta1_shift'][sub_ix])
         else:
             if c == 'congruent':
                 shape = mapp['beta0_shape'][sub_ix]
                 scale = mapp['beta0_scale'][sub_ix]
-                shift = mapp['beta0_shift'][sub_ix] * cond_rt.min()
+                shift = mapp['beta0_shift'][sub_ix]
             else:
                 shape = mapp['beta0_shape'][sub_ix] + mapp['beta1_shape']
                 scale = mapp['beta0_scale'][sub_ix] + mapp['beta1_scale']
-                shift = (mapp['beta0_shift'][sub_ix] + mapp['beta1_shift']) * cond_rt.min()
+                shift = mapp['beta0_shift'][sub_ix] + mapp['beta1_shift']
 
 
 

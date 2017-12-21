@@ -1,10 +1,11 @@
 data {
   int<lower=0> Nt;
   int<lower=0> Ns;
-  vector[Nt] rt;
+  vector<lower=0>[Nt] rt;
   vector[Nt] tt;
   int<lower=0> ll[Nt];
-  vector[Nt] min_rts;
+  vector<lower=0>[Ns] min_rt_i;
+  vector<lower=0>[Ns] min_rt_c;
 }
 
 parameters {
@@ -23,15 +24,9 @@ parameters {
   real mu_beta1_shape;
   real<lower=0> sigma_beta1_shape;
 
-  // Shift Parameters
-  real <lower=0, upper=1> mu_beta0_shift;
-  real <lower=0> sigma_beta0_shift;
-  real mu_beta1_shift;
-  real<lower=0> sigma_beta1_shift;
-
   // Subject Parameters
-  vector<lower=0, upper=1>[Ns] beta0_shift;
-  vector[Ns] beta1_shift;
+  vector<lower=0, upper=1>[Ns] beta_con_shift;
+  vector<lower=0, upper=1>[Ns] beta_inc_shift;
   vector<lower=0>[Ns] beta0_scale;
   vector[Ns] beta1_scale;
   vector<lower=0>[Ns] beta0_shape;
@@ -42,13 +37,11 @@ parameters {
 transformed parameters {
   vector<lower=0>[Nt] shape;
   vector<lower=0>[Nt] scale;
-  vector<lower=0, upper=1>[Nt] shift_base;
   vector<lower=0>[Nt] shift;
 
   shape = beta0_shape[ll] + beta1_shape[ll] .* tt;
   scale = beta0_scale[ll] + beta1_scale[ll] .* tt;
-  shift_base = beta0_shift[ll] + beta1_shift[ll] .* tt;
-  shift = shift_base .* min_rts;
+  shift = beta_inc_shift[ll] .* min_rt_i[ll] .* tt + beta_con_shift[ll] .* min_rt_c[ll] .* (1 - tt);
 }
 
 model {
@@ -73,16 +66,14 @@ model {
   sigma_beta1_shape ~ normal(0, 1);
   beta1_shape ~ normal(mu_beta1_shape, sigma_beta1_shape);
 
-  // Shift Priors
-
-  sigma_beta0_shift ~ normal(0, 1);
-  beta0_shift ~ normal(mu_beta0_shift, sigma_beta0_shift);
-
-  mu_beta1_shift ~ normal(0, 1);
-  sigma_beta1_shift ~ normal(0, 1);
-  beta1_shift ~ normal(mu_beta1_shift, sigma_beta1_shift);
-
   // Likelihood
 
   rt - shift ~ weibull(shape, scale);
+}
+
+generated quantities {
+  vector[Ns] beta1_shift;
+  vector<lower=0>[Ns] beta0_shift;
+  beta0_shift = min_rt_c .* beta_con_shift;
+  beta1_shift = min_rt_i .* beta_inc_shift - min_rt_c .* beta_con_shift;
 }
