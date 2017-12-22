@@ -137,7 +137,6 @@ def plot_posterior(param):
 
 
 def plot_map_estimates(model_fit, param):
-    print(param)
     plt.close('all')
     values = model_fit['mapp'][param]
     if values.shape:
