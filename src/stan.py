@@ -7,11 +7,13 @@ import time
 
 sns.set(style='whitegrid', font_scale=2)
 
+
 def weibull(x, alpha, sigma, shift):
     p1 = (alpha / sigma)
     p2 = np.power((x - shift) / sigma, alpha - 1)
     p3 = np.exp(-np.power((x - shift) / sigma, alpha))
     return p1 * p2 * p3
+
 
 def fit_model(model_name, data, n_iter, n_chains, init, seed=10,
               parameters=None):
@@ -41,7 +43,7 @@ def fit_model(model_name, data, n_iter, n_chains, init, seed=10,
     model_fit['samples'] = model_fit['model'].sampling(data=data,
                                                        iter=n_iter,
                                                        chains=n_chains,
-                                                       init=[init] * n_chains,
+                                                       init=[model_fit['mapp']] * n_chains,
                                                        seed=seed)
     sample_time = time.time()
     m = 'Drawing %s Posterior Samples took %s min. %s sec'
@@ -114,24 +116,43 @@ def plot_weibull_subject_fit(model_fit, behavior, subject, subjects):
     plt.show()
 
 
-def plot_posterior(param):
+def plot_posterior(param, model_fit, subject, subjects):
 
-    f, axs = plt.subplots(1, 2, figsize=(16, 8))
+    sub_ix = subjects.index(subject)
 
     samples = model_fit['samples'][param]
+    mapp = model_fit['mapp'][param]
     print(samples.shape)
+
     if len(samples.shape) > 1:
-        nd = samples.shape[1]
-        for j in range(nd):
-            f, axs = plt.subplots(1, 2, figsize=(16, 8))
-            sns.distplot(samples[:, j], ax=axs[0])
-            axs[0].set_title('%s Density' % param)
 
-            axs[1].plot(samples)
-            axs[1].set_title('%s Traceplot' % param)
+        f, axs = plt.subplots(1, 3, figsize=(24, 6))
+        sub_samples = samples[:, sub_ix]
+
+        # plot map distribution
+        sns.distplot(mapp, ax=axs[0])
+        axs[0].axvline(mapp[sub_ix], color='k')
+        axs[0].set_title('%s Subject MAPs' % param)
+
+        # plot subject posterior
+        sns.distplot(sub_samples, ax=axs[1])
+        axs[1].axvline(mapp[sub_ix], color='k')
+        axs[1].set_title('%s %s Posterior' % (subject, param))
+
+        # plot trace plot
+        axs[2].plot(sub_samples)
+        axs[2].set_title('%s Trace Plot' % param)
     else:
-        sns.distplot(samples, ax=axs[0])
+        f, axs = plt.subplots(1, 2, figsize=(16, 8))
 
+        # plot map distribution
+        sns.distplot(samples, ax=axs[0])
+        axs[0].axvline(mapp, color='k')
+        axs[0].set_title('%s Posterior' % param)
+
+        # plot trace plot
+        axs[1].plot(samples)
+        axs[1].set_title('%s Trace Plot' % param)
 
     plt.show()
 
