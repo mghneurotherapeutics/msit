@@ -47,7 +47,7 @@ def power_heatmap(power, ax, lim, rts=None, rt_colors=None):
                 cmap='jet', vmin=-lim, vmax=lim)
 
     # frequency axis labeling
-    freq_ticks = [2, 4, 8, 15, 30, 60]
+    freq_ticks = [2, 4, 7.5, 12.5, 30, 60]
     ys = []
     for ft in freq_ticks:
         ys.append(np.argmin(np.abs(power.freqs - ft)))
@@ -63,7 +63,7 @@ def power_heatmap(power, ax, lim, rts=None, rt_colors=None):
     # add rt dist to bottom
     if rts:
         for rt, col in zip(rts, rt_colors):
-            ax.hist(rt, color=col, normed=True, bottom=-4)
+            ax.hist(rt, color=col, normed=True, bottom=-4, alpha=0.7)
 
     return ax
 
