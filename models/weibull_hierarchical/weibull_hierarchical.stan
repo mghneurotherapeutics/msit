@@ -35,16 +35,18 @@ parameters {
 }
 
 transformed parameters {
-  vector<lower=0>[Nt] shape;
-  vector<lower=0>[Nt] scale;
-  vector<lower=0>[Nt] shift;
+    vector<lower=0>[Ns] inc_shape;
+    vector<lower=0>[Ns] inc_scale;
 
-  shape = beta0_shape[ll] + beta1_shape[ll] .* tt;
-  scale = beta0_scale[ll] + beta1_scale[ll] .* tt;
-  shift = beta_inc_shift[ll] .* min_rt_i[ll] .* tt + beta_con_shift[ll] .* min_rt_c[ll] .* (1 - tt);
+    inc_shape = beta0_shape + beta1_shape;
+    inc_scale = beta0_scale + beta1_scale;
 }
 
 model {
+
+  vector[Nt] shape;
+  vector[Nt] scale;
+  vector[Nt] shift;
 
   // Scale Priors
 
@@ -68,6 +70,9 @@ model {
 
   // Likelihood
 
+  shape = beta0_shape[ll] .* (1 - tt) + inc_shape[ll] .* tt;
+  scale = beta0_scale[ll] .* (1 - tt) + inc_scale[ll] .* tt;
+  shift = beta_inc_shift[ll] .* min_rt_i[ll] .* tt + beta_con_shift[ll] .* min_rt_c[ll] .* (1 - tt);
   rt - shift ~ weibull(shape, scale);
 }
 

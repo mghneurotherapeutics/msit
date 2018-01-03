@@ -60,13 +60,13 @@ def fit_model(model_name, data, n_iter, n_chains, init, seed=10,
 
     print('Compiling Model...')
     f = '../models/%s/%s.stan' % (model_name, model_name)
-    model_fit['model'] = pystan.StanModel(file=f, model_name=model_name)
+    model = pystan.StanModel(file=f, model_name=model_name)
     curr_time = display_elapsed_time('Compiling', start_time)
 
     print('Computing MAP Estimates...')
-    model_fit['map'] = model_fit['model'].optimizing(data=data,
-                                                     seed=seed,
-                                                     init=init)
+    model_fit['map'] = model.optimizing(data=data,
+                                        seed=seed,
+                                        init=init)
     curr_time = display_elapsed_time('Finding MAP estimates', curr_time)
 
     if not keep_params:
@@ -74,11 +74,11 @@ def fit_model(model_name, data, n_iter, n_chains, init, seed=10,
 
     print('Sampling from Posterior...')
     init = [model_fit['map']] * n_chains
-    fit = model_fit['model'].sampling(data=data,
-                                      iter=n_iter,
-                                      chains=n_chains,
-                                      init=init,
-                                      seed=seed)
+    fit = model.sampling(data=data,
+                         iter=n_iter,
+                         chains=n_chains,
+                         init=init,
+                         seed=seed)
     msg = 'Drawing %s Posterior Samples' % n_iter
     curr_time = display_elapsed_time(msg, curr_time)
 
@@ -147,8 +147,6 @@ def plot_weibull_subject_fit(model_fit, behavior, subject, subjects):
                 scale = mapp['beta0_scale'][sub_ix] + mapp['beta1_scale']
                 shift = mapp['beta0_shift'][sub_ix] + mapp['beta1_shift']
 
-
-
         x = np.arange(shift, 1.75, .01)
         sns.distplot(cond_rt, color=colors[i], ax=ax, kde=False,
                      norm_hist=True)
@@ -209,7 +207,7 @@ def plot_posterior(param, model_fit, subject, subjects):
         for i in range(sub_samples.shape[0]):
             acf_s = pd.Series(sub_samples[i, :])
             acf = []
-            lags = np.arange(sub_samples.shape[1] - 1) + 1
+            lags = np.arange(1, 51, 1)
             for lag in lags:
                 acf.append(acf_s.autocorr(lag))
             ax.plot(lags, acf)
@@ -245,7 +243,7 @@ def plot_posterior(param, model_fit, subject, subjects):
         for i in range(samples.shape[0]):
             acf_s = pd.Series(samples[i, :])
             acf = []
-            lags = np.arange(samples.shape[1] - 1) + 1
+            lags = np.arange(1, 51, 1)
             for lag in lags:
                 acf.append(acf_s.autocorr(lag))
             ax.plot(lags, acf)
