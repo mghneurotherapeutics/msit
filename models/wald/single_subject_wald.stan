@@ -17,8 +17,8 @@ data {
 }
 
 parameters {
-  real<lower=0, upper=min(rt_c)> ndt_c;
-  real<lower=0, upper=min(rt_i)> ndt_i;
+  real<lower=0.0, upper=min(rt_c)> ndt_c;
+  real<lower=0.0, upper=min(rt_i)> ndt_i;
   real<lower=0> dr_c;
   real<lower=0> dr_i;
   real<lower=0> db_c;

@@ -17,6 +17,12 @@ def weibull(x, alpha, sigma, shift):
     return p1 * p2 * p3
 
 
+def wald(x, alpha, gamma, theta):
+    first = alpha / np.sqrt(2 * np.pi * np.power(x - theta, 3))
+    second = np.exp(-(np.power(alpha - gamma * (x - theta), 2)) / (2 * (x - theta)))
+    return first * second
+
+
 def extract_samples(fit, params, n_chains, n_iter):
     sim = fit.sim['samples']
     var_names = list(sim[0]['chains'].keys())
@@ -47,7 +53,7 @@ def display_elapsed_time(msg, start_time):
     return curr_time
 
 
-def fit_model(model_name, data, n_iter, n_chains, init, seed=10,
+def fit_model(model_name, model_path, data, n_iter, n_chains, init, seed=10,
               keep_params=None):
 
     print('Starting Model Fit...')
@@ -59,7 +65,7 @@ def fit_model(model_name, data, n_iter, n_chains, init, seed=10,
     model_fit['n_iter'] = n_iter
 
     print('Compiling Model...')
-    f = '../models/%s/%s.stan' % (model_name, model_name)
+    f = '../models/%s/%s.stan' % (model_path, model_name)
     model = pystan.StanModel(file=f, model_name=model_name)
     curr_time = display_elapsed_time('Compiling', start_time)
 
@@ -77,7 +83,7 @@ def fit_model(model_name, data, n_iter, n_chains, init, seed=10,
     fit = model.sampling(data=data,
                          iter=n_iter,
                          chains=n_chains,
-                         init=init,
+                         init='random',
                          seed=seed)
     msg = 'Drawing %s Posterior Samples' % n_iter
     curr_time = display_elapsed_time(msg, curr_time)
@@ -99,7 +105,7 @@ def fit_model(model_name, data, n_iter, n_chains, init, seed=10,
     curr_time = display_elapsed_time('Extracting fit summary', curr_time)
 
     print('Pickling Model Fit...')
-    f = f.replace('.stan', 't.pkl')
+    f = f.replace('.stan', '.pkl')
     if os.path.exists(f):
         os.remove(f)
     pickle.dump(model_fit, open(f, 'w'))
@@ -113,7 +119,7 @@ def fit_model(model_name, data, n_iter, n_chains, init, seed=10,
     return model_fit
 
 
-def plot_weibull_subject_fit(model_fit, behavior, subject, subjects):
+def plot_hierarchical_wald_fit(model_fit, behavior, subject, subjects):
     plt.close('all')
     f, ax = plt.subplots(1, 1, figsize=(16, 8))
     mapp = model_fit['map']
@@ -128,7 +134,41 @@ def plot_weibull_subject_fit(model_fit, behavior, subject, subjects):
 
         cond_rt = behavior[behavior.trial_type == c].response_time
 
-        if subject != 'group':
+        gamma = mapp['dr_%s' % c][sub_ix]
+        alpha = mapp['db_%s' % c][sub_ix]
+        theta = mapp['ndt_%s' % c][sub_ix]
+
+        x = np.arange(theta, 1.75, .01)
+        sns.distplot(cond_rt, color=colors[i], ax=ax, kde=False,
+                     norm_hist=True)
+
+        ax.plot(x, wald(x, alpha, gamma, theta), color=colors[i])
+
+    plt.title(subject)
+    plt.legend(conditions)
+    plt.xlabel('Response Time (s)')
+    plt.xlim((0, 1.75))
+    plt.ylim((0, 4))
+    plt.show()
+
+
+def plot_weibull_subject_fit(model_name, model_fit, behavior, subject,
+                             subjects):
+    plt.close('all')
+    f, ax = plt.subplots(1, 1, figsize=(16, 8))
+    mapp = model_fit['map']
+    colors = ['#e41a1c', '#377eb8']
+    conditions = ['congruent', 'incongruent']
+
+    if subject != 'group':
+        behavior = behavior[behavior.participant_id == subject]
+        sub_ix = subjects.index(subject)
+
+    for i, c in enumerate(conditions):
+
+        cond_rt = behavior[behavior.trial_type == c].response_time
+
+        if model_name == 'weibull_additive_hierarchical':
             if c == 'congruent':
                 shape = mapp['beta0_shape'][sub_ix]
                 scale = mapp['beta0_scale'][sub_ix]
@@ -138,14 +178,9 @@ def plot_weibull_subject_fit(model_fit, behavior, subject, subjects):
                 scale = mapp['beta0_scale'][sub_ix] + mapp['beta1_scale'][sub_ix]
                 shift = (mapp['beta0_shift'][sub_ix] + mapp['beta1_shift'][sub_ix])
         else:
-            if c == 'congruent':
-                shape = mapp['beta0_shape'][sub_ix]
-                scale = mapp['beta0_scale'][sub_ix]
-                shift = mapp['beta0_shift'][sub_ix]
-            else:
-                shape = mapp['beta0_shape'][sub_ix] + mapp['beta1_shape']
-                scale = mapp['beta0_scale'][sub_ix] + mapp['beta1_scale']
-                shift = mapp['beta0_shift'][sub_ix] + mapp['beta1_shift']
+            shape = mapp['shape_%s' % c][sub_ix]
+            scale = mapp['scale_%s' % c][sub_ix]
+            shift = mapp['shift_%s' % c][sub_ix]
 
         x = np.arange(shift, 1.75, .01)
         sns.distplot(cond_rt, color=colors[i], ax=ax, kde=False,
