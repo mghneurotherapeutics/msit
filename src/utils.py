@@ -26,6 +26,16 @@ CH_NAMES = ['Fp1', 'Fpz', 'Fp2',
             'Oz', 'O2', 'Iz']
 
 
+def exclude_subjects(subjects, mod, reset=False):
+    f = '../data/participants.tsv'
+    sub_info = pd.read_csv(f, sep='\t')
+    if reset:
+        sub_info['%s_exclude' % mod] = 0
+    sub_info.loc[sub_info.participant_id.isin(subjects),
+                 '%s_exclude' % mod] = 1
+    sub_info.to_csv(f, sep='\t', index=False)
+
+
 def select_subjects(layout, modality, start=None, end=None, exclude=[]):
 
     subjects = np.array(sorted(layout.get(target='subject',
