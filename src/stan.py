@@ -6,6 +6,7 @@ import numpy as np
 import pandas as pd
 import time
 import os
+import re
 
 sns.set(style='whitegrid', font_scale=2)
 
@@ -31,7 +32,7 @@ def extract_samples(fit, params, n_chains, n_iter):
 
     samples = {}
     for p in params:
-        p_vars = [v for v in var_names if v.startswith(p)]
+        p_vars = [v for v in var_names if re.match('^%s(\[\d\])*$' % p, v)]
 
         p_data = []
         for pv in p_vars:
