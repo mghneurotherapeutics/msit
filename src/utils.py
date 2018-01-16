@@ -38,6 +38,7 @@ def exclude_subjects(subjects, mod, reset=False):
 
     :returns: None -- Updates the participants.tsv file with the exclusions
     """
+
     f = '../data/participants.tsv'
     sub_info = pd.read_csv(f, sep='\t')
     if reset:
@@ -47,28 +48,28 @@ def exclude_subjects(subjects, mod, reset=False):
     sub_info.to_csv(f, sep='\t', index=False)
 
 
-def select_subjects(layout, modality, start=None, end=None, exclude=[]):
+def select_subjects(mod, exclude=None):
+    """
+    :param mod: The modality to select subjects for
+    :type mod: str
+    :param exclude: Subjects to exclude. If None, defaults to all currently
+    specified in the participants.tsv file
+    :type exclude: list
 
-    subjects = np.array(sorted(layout.get(target='subject',
-                                          modality=modality,
-                                          return_type='id')))
+    :returns: subject -- List of subjects not excluded for the given modality
+    """
+    f = '../data/participants.tsv'
+    sub_info = pd.read_csv(f, sep='\t')
 
-    # perform index based selection
-    start_ix, end_ix = 0, len(subjects) + 1
-    if start:
-        start_ix = np.where(subjects == start)[0]
-    if end:
-        end_ix = np.where(subjects == end)[0]
-    subjects = subjects[start_ix:end_ix]
-
-    # determines exclusions
-    if type(exclude) == str:
-        ex = pd.read_csv('../data/participants.tsv', sep='\t')
-        tmp1 = ex[ex['%s_exclude' % exclude] == 1].participant_id
-        tmp2 = ex[ex['behavior_%s_exclude' % exclude] == 1].participant_id
+    # retrieve existing exclusions if no custom list is provided
+    if not exclude:
+        tmp1 = sub_info[sub_info['%s_exclude' % mod] == 1].participant_id
+        tmp2 = sub_info[sub_info['behavior_%s_exclude' % mod] == 1].participant_id
         exclude = np.unique(list(tmp1) + list(tmp2))
 
-    return [sub for sub in subjects if sub not in exclude]
+    keep_ix = ~sub_info.participant_id.isin(exclude)
+    subjects = list(sub_info[keep_ix].participant_id)
+    return subjects
 
 
 def drop_bad_trials(subject, behavior, epochs, layout, epo_type):
