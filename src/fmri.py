@@ -115,3 +115,74 @@ def plot_task_regressors(regressors, labels, subject):
 
     return fig
 
+
+def plot_design_matrix(fsfast_path, subject, typ):
+
+        X = np.loadtxt('%s/%s/msit/%s.lh/X.dat' % (fsfast_path, subject, typ))
+        reg_labels = []
+
+        fig = plt.figure(figsize=(25, 20))
+        plt.subplots_adjust(hspace=0.5, wspace=0.5)
+        plt.suptitle('%s Design Matrix' % subject, y=1)
+        ix = 0
+
+        # Plot design matrix
+        ax = plt.subplot2grid((4, 4), (0, 0), colspan=3, rowspan=3)
+        sns.heatmap(X, axes=ax, vmin=-2.5, vmax=2.5, cmap='RdBu_r')
+        ax.set_yticks(())
+        ax.set_xticks(())
+
+        # Plot task regressors
+        for i, c in enumerate(['Congruent', 'Incongruent']):
+            ax = plt.subplot2grid((4, 4), (i, 3))
+            ax.plot(X[:, i])
+            ax.set_xlabel('Acquisition')
+            ax.set_title(c)
+            ax.set_xlim((0, len(X[:, i].T)))
+            reg_labels.append(c)
+            ix += 1
+
+        # Add demean regressor
+        reg_labels.append('Demean')
+        ix += 1
+
+        # Add HPF regressor
+        # Number is determined by peaking at design matrix
+        for k in range(2):
+            reg_labels.append('HPF %s' % (k + 1))
+        ix += 1
+
+        # Plot highpass regressors
+        ax = plt.subplot2grid((4, 4), (2, 3))
+        for k in range(2):
+            ax.plot(X[:, k + 3])
+            ax.set_xlim((0, len(X[:, i].T)))
+        ax.legend(reg_labels[-2:])
+        ax.set_xlabel('Acquisition')
+        ax.set_title('Highpass Filter')
+
+        # Add initial volume skips
+        for k in range(4):
+            reg_labels.append('Skip %s' % (k + 1))
+        ix += 4
+
+        # Add scrubbing regressors
+        try:
+            scrubs = np.loadtxt('%s/%s/msit/001/fd_censor.par' % (fsfast_path,
+                                                                  subject))
+            for k in range(len(scrubs)):
+                reg_labels.append('Scrub %s' % k + 1)
+                ix += 1
+        except:
+            pass
+
+        # Computer and plot variance inflation factor
+        ax = plt.subplot2grid((4, 4), (3, 0), colspan=4)
+        vif = [variance_inflation_factor(X, i) for i in range(X.shape[1])]
+        ax.bar(np.arange(len(vif)), vif)
+        ax.set_xticks(np.arange(len(vif)) + .4)
+        ax.set_xticklabels(reg_labels)
+        ax.set_ylabel('VIF')
+
+        fig.tight_layout()
+        return fig
