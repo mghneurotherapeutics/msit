@@ -39,24 +39,17 @@ Project Organization
 
 ### Python & R Packages
 
-Python and R were managed using the Anaconda 5.0.1 distribution for Python 3.6.
+Python and R packages were managed using the Anaconda 5.0.1 distribution for Python 3.6.
 
-A new environment was created:
-  conda create -n msit python=2.7
+With anaconda installed (https://docs.anaconda.com/anaconda/install/) you can create a copy of the msit environment provided in the environment.yml file with the following command:
+  conda env create -f environment.yml
 
-Python & Jupyter packages were installed:
-  - conda install jupyter mayavi ipywidgets scipy pandas matplotlib seaborn statsmodels
-  - pip install nibabel
-  - pip install pysurfer
-  - pip install mne
+The new environment can then be accessed by typing:
+  source activate msit
 
-R packages were installed:
-  - conda install -c r r-essentials
-  - conda install -c mittner r-rstan
-  - The loo and bayesplot stan extension packages were installed by running install.packages("bayesplot") and install.packages("loo") in a jupyter notebook running the irkernel.
+This will reproduce all the R and Python packages with the versions used. You should have the msit environment active before running all scripts and notebooks.
 
-Notebook Extensions were installed:
-  - conda install -c conda-forge jupyter_contrib_nbextensions
-  - I highly recommend enabling the table of contents so you can make use of the hierarchical structure and navigate sections easier.
+This environment includes the jupyter notebook extensions. I highly recommend enabling the Table of Contents extension so that you can navigate the notebooks with the interactive table of contents.
 
-An environment file was exported to environment.yml
+The final installation step is to run the r_install.R script in the src/ folder. This script finishes installation for some of the r stan packages. It first creates a Makevars file that allows stan to run with the proper c++ compiler. It then installs the loo and bayesplot packages via the r installer since they are not available as conda packages.
+
