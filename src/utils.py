@@ -60,15 +60,23 @@ def select_subjects(mod, exclude=None):
     """
     f = '../data/participants.tsv'
     sub_info = pd.read_csv(f, sep='\t')
+    
+    # reduce to subjects who completed the given modality
+    sub_info = sub_info[sub_info[mod] == 1]
 
     # retrieve existing exclusions if no custom list is provided
     if not exclude:
         tmp1 = sub_info[sub_info['%s_exclude' % mod] == 1].participant_id
         tmp2 = sub_info[sub_info['behavior_%s_exclude' % mod] == 1].participant_id
         exclude = np.unique(list(tmp1) + list(tmp2))
-
-    keep_ix = ~sub_info.participant_id.isin(exclude)
-    subjects = list(sub_info[keep_ix].participant_id)
+        
+    # reduce to non-excluded subjects
+    if len(exclude) > 0:
+        keep_ix = ~sub_info.participant_id.isin(exclude)
+        subjects = list(sub_info[keep_ix].participant_id)
+    else:
+        subjects = list(sub_info.participant_id)
+        
     return subjects
 
 

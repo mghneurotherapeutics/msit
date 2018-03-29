@@ -14,6 +14,152 @@ from mne.preprocessing import create_eog_epochs, create_ecg_epochs
 sns.set(style='whitegrid', font_scale=1.5)
 
 
+# Behavior Functions
+
+
+def create_tidy_subject_df(filename, subject, modality, fast_rt_thresh=.2):
+    """
+    Creates a cleaned tidy subject dataframe. This includes removing fixation
+    trials and encoding iti in separate column, encoding error and posterror trials,
+    encoding n-1 trial sequences, and marking fast rts.
+
+    Parameters
+    ----------
+    filename : string 
+        filepath to the subject tsv file
+    subject : string
+        participant id
+    modality : string
+        the modality of the data (eeg or fmri)
+    fast_rt_thresh: float, optional
+        threshold for denoting fast rt in seconds, by default 200 ms
+
+    Returns
+    -------
+    DataFrame 
+        tidy subject pandas DataFrame 
+    """
+    
+    df = pd.read_csv(filename, sep='\t', na_values='n/a')
+    df['participant_id'] = subject
+    df['modality'] = modality
+    
+    # extract out itis and remove fixation triasl
+    df = extract_itis(df)
+    df = df[df.trial_type != 'fixation'].reset_index(drop=True)
+    
+    # encode error and post-error trials
+    df['error'] = 1 - df.response_accuracy
+    df = encode_post_error(df)
+    
+    # encode no-response trials
+    df['no_response'] = 0
+    df.loc[df.chosen_response.isnull(), 'no_response'] = 1
+
+    # Encode condition sequence effects
+    df = encode_trial_type_sequence(df)
+
+    # encode fast response times
+    df['fast_rt'] = np.where(df.response_time < fast_rt_thresh, 1, 0)
+
+    # encode trial numbers
+    df['trial'] = np.arange(df.shape[0]) + 1
+    
+    return df
+
+
+def extract_itis(df):
+    """
+    Extracts itis from a subject's behavior dataframe in a separate column.
+
+    Parameters
+    ----------
+    df : DataFrame 
+        the subject's dataframe with fixation trials 
+
+    Returns
+    -------
+    DataFrame 
+        the subject's dataframe with iti column added 
+    """
+
+    df['iti'] = 0
+
+    # Get the indices where there was a previous iti
+    iti_ix = np.where(np.roll(df.trial_type, 1) == 'fixation')[0]
+
+    # Get the iti duration values
+    itis = np.array(df[df.trial_type == 'fixation'].duration)
+
+    # Ignore the wrap around
+    if df.trial_type.as_matrix()[-1] == 'fixation':
+        itis = np.delete(itis, 0)
+        iti_ix = np.delete(iti_ix, 0)
+
+    # update the datframe
+    df.loc[iti_ix, 'iti'] = itis
+
+    return df
+
+
+def encode_trial_type_sequence(df):
+    """
+    Extracts n-1 trial type sequences from a subject's behavior dataframe 
+    in a separate column
+
+    Parameters
+    ----------
+    df : DataFrame 
+        the subject's dataframe
+
+    Returns
+    -------
+    DataFrame 
+        the subject's dataframe with n-1 trial type sequence column added 
+    """
+
+    df['trial_type_sequence'] = 'cc'
+
+    for seq in ['ci', 'ic', 'ii']:
+        prev_ix = np.roll(df.trial_type.str.startswith(seq[0]), 1)
+        curr_ix = df.trial_type.str.startswith(seq[1])
+        seq_ix = np.where(np.logical_and(prev_ix, curr_ix))[0]
+        df.loc[seq_ix, 'trial_type_sequence'] = seq
+
+    df.loc[0, 'trial_type_sequence'] = np.NaN
+
+    return df
+
+
+def encode_post_error(df):
+    """
+    Extracts trials immediately following an error in a separate column
+
+    Parameters
+    ----------
+    df : DataFrame 
+        the subject's dataframe
+
+    Returns
+    -------
+    DataFrame 
+        the subject's dataframe with post_error column added 
+    """
+
+    df['post_error'] = 0
+    post_error_ix = np.where(np.roll(df.error, 1) == 1)[0]
+
+    # Ignore potential wraparound from last trial
+    if len(post_error_ix) != 0 and post_error_ix[0] == 0:
+        post_error_ix = np.delete(post_error_ix, 0)
+
+    df.loc[post_error_ix, 'post_error'] = 1
+    return df
+
+
+# EEG Functions
+
+
 def make_eeg_prep_derivatives_folder(datapath):
     """ Creates a skeleton file structure for the eeg preprocessing pipeline
     built as part of this project.
@@ -370,67 +516,4 @@ def plot_bad_chs_group_summary(bad_ch_info):
     plt.tight_layout()
     return fig
 
-
-def extract_itis(df):
-
-    df['iti'] = 0
-
-    # Get the indices where there was a previous iti
-    iti_ix = np.where(np.roll(df.trial_type, 1) == 'fixation')[0]
-
-    # Get the iti duration values
-    itis = np.array(df[df.trial_type == 'fixation'].duration)
-
-    # Ignore the wrap around
-    if df.trial_type.as_matrix()[-1] == 'fixation':
-        itis = np.delete(itis, 0)
-        iti_ix = np.delete(iti_ix, 0)
-
-    # update the datframe
-    df.loc[iti_ix, 'iti'] = itis
-
-    return df
-
-
-def encode_trial_type_sequence(df):
-
-    df['trial_type_sequence'] = 'cc'
-
-    for seq in ['ci', 'ic', 'ii']:
-        prev_ix = np.roll(df.trial_type.str.startswith(seq[0]), 1)
-        curr_ix = df.trial_type.str.startswith(seq[1])
-        seq_ix = np.where(np.logical_and(prev_ix, curr_ix))[0]
-        df.loc[seq_ix, 'trial_type_sequence'] = seq
-
-    df.loc[0, 'trial_type_sequence'] = np.NaN
-
-    return df
-
-
-def encode_post_error(df):
-
-    df['post_error'] = 0
-    post_error_ix = np.where(np.roll(df.error, 1) == 1)[0]
-
-    # Ignore potential wraparound from last trial
-    if len(post_error_ix) != 0 and post_error_ix[0] == 0:
-        post_error_ix = np.delete(post_error_ix, 0)
-
-    df.loc[post_error_ix, 'post_error'] = 1
-    return df
-
-
-def encode_target_location(df):
-
-    rs = []
-    for s, cr in zip(df.stimulus, df.correct_response):
-        if int(s[0]) == cr:
-            rs.append('left')
-        elif int(s[2]) == cr:
-            rs.append('right')
-        else:
-            rs.append('middle')
-
-    df['target_location'] = rs
-    return df
 
