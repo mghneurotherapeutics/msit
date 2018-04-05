@@ -48,7 +48,7 @@ def exclude_subjects(subjects, mod, reset=False):
     sub_info.to_csv(f, sep='\t', index=False)
 
 
-def select_subjects(mod, exclude=None):
+def select_subjects(mod, exclude='auto'):
     """
     :param mod: The modality to select subjects for
     :type mod: str
@@ -62,22 +62,33 @@ def select_subjects(mod, exclude=None):
     sub_info = pd.read_csv(f, sep='\t')
     
     # reduce to subjects who completed the given modality
-    sub_info = sub_info[sub_info[mod] == 1]
+    if mod == 'both':
+        ix = (sub_info['eeg'] == 1 & sub_info['fmri'] == 1)
+        sub_info = sub_info[ix]
+    else:
+        sub_info = sub_info[sub_info[mod] == 1]
 
     # retrieve existing exclusions if no custom list is provided
-    if not exclude:
-        tmp1 = sub_info[sub_info['%s_exclude' % mod] == 1].participant_id
-        tmp2 = sub_info[sub_info['behavior_%s_exclude' % mod] == 1].participant_id
-        exclude = np.unique(list(tmp1) + list(tmp2))
+    if exclude == 'auto':
+        if mod == 'both':
+            exclude = []
+            for mod in ['eeg', 'fmri']:
+                tmp1 = sub_info[sub_info['%s_exclude' % mod] == 1].participant_id
+                tmp2 = sub_info[sub_info['behavior_%s_exclude' % mod] == 1].participant_id
+                exclude += list(np.unique(list(tmp1) + list(tmp2)))
+        else:
+            tmp1 = sub_info[sub_info['%s_exclude' % mod] == 1].participant_id
+            tmp2 = sub_info[sub_info['behavior_%s_exclude' % mod] == 1].participant_id
+            exclude = np.unique(list(tmp1) + list(tmp2))
         
     # reduce to non-excluded subjects
-    if len(exclude) > 0:
+    if exclude:
         keep_ix = ~sub_info.participant_id.isin(exclude)
         subjects = list(sub_info[keep_ix].participant_id)
     else:
         subjects = list(sub_info.participant_id)
         
-    return subjects
+    return sorted(subjects)
 
 
 def drop_bad_trials(subject, behavior, epochs, layout, epo_type):
