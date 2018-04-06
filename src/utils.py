@@ -63,7 +63,7 @@ def select_subjects(mod, exclude='auto'):
     
     # reduce to subjects who completed the given modality
     if mod == 'both':
-        ix = (sub_info['eeg'] == 1 & sub_info['fmri'] == 1)
+        ix = np.array(sub_info['eeg'] + sub_info['fmri']) == 2
         sub_info = sub_info[ix]
     else:
         sub_info = sub_info[sub_info[mod] == 1]
