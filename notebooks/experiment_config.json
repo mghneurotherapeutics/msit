@@ -1,0 +1,21 @@
+{
+  "epochs_info": {
+                   "epo_types": ["stimulus", "response"],
+                   "event_chs": ["STI001", "STI002"],
+                   "epo_boundaries": [[-0.5, 1.75], [-1, 1]],
+                   "event_ids": {
+                                  "incongruent": 0,
+                                  "congruent": 1
+                                },
+                   "baseline_container": "stimulus",
+                   "baseline_boundary": [-0.5, -0.1],
+                   "filter_buffer": 0.5
+                 },
+  "filter_highpass": 0.1,
+  "filter_lowpass": 40,
+  "aux_chs": ["VEOG", "HEOG", "ECG"],
+  "n_interpolates": [1, 3, 5, 10, 15, 20, 25],
+  "consensus_percs": [0.0, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1.0],
+  "event_types": ["incongruent", "congruent"],
+  "colors": ["#e41a1c", "#377eb8"]
+}

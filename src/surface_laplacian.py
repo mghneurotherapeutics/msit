@@ -21,10 +21,18 @@ def surface_laplacian(inst, x, y, z, inst_type, m='auto', leg_order='auto',
     """
 
     inst = inst.copy()
-    inst.interpolate_bads(reset_bads=False)
 
     # Get indices of EEG data
     eeg_ix = pick_types(inst.info, eeg=True, meg=False, exclude=[])
+    eeg_ch_names = np.array(inst.ch_names)[eeg_ix]
+
+    # drop out bads from the spherical locations
+    good_ix = np.array([ix for ix in range(len(eeg_ch_names)) 
+                        if eeg_ch_names[ix] not in inst.info['bads']])
+    x = x[good_ix]
+    y = y[good_ix]
+    z = z[good_ix]
+    eeg_ix = pick_types(inst.info, eeg=True, meg=False, exclude='bads')
 
     if inst_type == 'evoked':
         data = inst.data[eeg_ix, :]
