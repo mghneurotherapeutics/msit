@@ -82,7 +82,7 @@ def select_subjects(mod, exclude='auto'):
             exclude = np.unique(list(tmp1) + list(tmp2))
         
     # reduce to non-excluded subjects
-    if exclude:
+    if len(exclude) > 1:
         keep_ix = ~sub_info.participant_id.isin(exclude)
         subjects = list(sub_info[keep_ix].participant_id)
     else:
