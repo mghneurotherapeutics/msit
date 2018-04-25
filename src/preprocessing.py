@@ -241,19 +241,25 @@ def update_events(eeg_events, epo_type, behavior):
         if epo_type == 'response':
             eeg_events = eeg_events[1:, :]
             
-    behavior_events = np.array(behavior.trial_type.astype('category').cat.codes)
-            
     # assert event counts match and reduce only to response trials
     response_ix = np.array(~behavior.response_time.isnull())
     if epo_type == 'stimulus':
-        assert(len(behavior_events) == eeg_events.shape[0])
-        behavior_events = behavior_events[response_ix]
+        assert(behavior.shape[0] == eeg_events.shape[0])
+        behavior = behavior[response_ix]
         eeg_events = eeg_events[response_ix]
     elif epo_type == 'response':
-        behavior_events = behavior_events[response_ix]
-        assert(len(behavior_events) == eeg_events.shape[0])
+        behavior = behavior[response_ix]
+        assert(behavior.shape[0] == eeg_events.shape[0])
+        
+    # remove too fast trials, error trials, and post-error trials from the eeg
+    exclude = ['fast_rt', 'error', 'post_error']
+    behavior.loc[:, 'exclude'] = np.where(np.sum(behavior[exclude], axis=1) > 0, 1, 0)
+    keep_ix = np.array(behavior.exclude == 0)
+    behavior = behavior[keep_ix]
+    eeg_events = eeg_events[keep_ix, :]
         
     # encode trial type in the eeg events
+    behavior_events = np.array(behavior.trial_type.astype('category').cat.codes)
     eeg_events[:, -1] = behavior_events
     
     return eeg_events
