@@ -43,15 +43,13 @@ functions {
 }
 
 data {
-  int<lower=0> Ni;
-  int<lower=0> Nc;
+  int<lower=0> Nt;
   int<lower=0> Ns;
-  vector<lower=0>[Ni] rt_i;
-  vector<lower=0>[Nc] rt_c;
-  int<lower=0> ll_c[Nc];
-  int<lower=0> ll_i[Ni];
-  vector<lower=0>[Ns] min_rt_i;
-  vector<lower=0>[Ns] min_rt_c;
+  vector<lower=0>[Nt] rt;
+  vector<lower=0>[Ns] min_rt;
+  int sub_ix[Nt];
+  vector[Nt] tt;
+  vector[Nt] mod;
 }
 
 parameters {
@@ -59,125 +57,124 @@ parameters {
   // Group Parameters
 
   // Drift Rate Parameters
-  real<lower=.01, upper=10> dr_group_mu_congruent;
-  real<lower=.01, upper=3> dr_group_sigma_congruent;
-  real<lower=.01, upper=10> dr_group_mu_incongruent;
-  real<lower=0.001, upper=3> dr_group_sigma_incongruent;
+  real<lower=0> dr_group_mu_intercept;
+  real<lower=0> dr_group_sigma_intercept;
+  real dr_group_mu_beta_mod;
+  real<lower=0> dr_group_sigma_beta_mod;
+  real dr_group_mu_beta_tt;
+  real<lower=0> dr_group_sigma_beta_tt;
 
   // Decision Boundary Parameters
-  real<lower=.01, upper=10> db_group_mu_congruent;
-  real<lower=0.001, upper=3> db_group_sigma_congruent;
-  real<lower=.01, upper=10> db_group_mu_incongruent;
-  real<lower=0.001, upper=3> db_group_sigma_incongruent;
+  real<lower=0> db_group_mu_intercept;
+  real<lower=0> db_group_sigma_intercept;
+  real db_group_mu_beta_mod;
+  real<lower=0> db_group_sigma_beta_mod;
+  real db_group_mu_beta_tt;
+  real<lower=0> db_group_sigma_beta_tt;
 
-  // Non-Decision Time Parameters
-  real<lower=0.1, upper=1> ndt_group_mu_congruent;
-  real<lower=0.001, upper=.5> ndt_group_sigma_congruent;
-  real<lower=0.1, upper=1> ndt_group_mu_incongruent;
-  real<lower=0.001, upper=.5> ndt_group_sigma_incongruent;
+  // Non-Decision Time parameters
+  real<lower=0> ndt_group_mu_intercept;
+  real<lower=0> ndt_group_sigma_intercept;
+  real ndt_group_mu_beta_mod;
+  real<lower=0> ndt_group_sigma_beta_mod;
+  real ndt_group_mu_beta_tt;
+  real<lower=0> ndt_group_sigma_beta_tt;
 
   // Subject Parameters
-
-  vector<lower=0.01, upper=1>[Ns] ndt_con;
-  vector<lower=0.01, upper=1>[Ns] ndt_inc;
-  vector<lower=0.01>[Ns] dr_congruent;
-  vector<lower=0.01>[Ns] dr_incongruent;
-  vector<lower=0.01>[Ns] db_congruent;
-  vector<lower=0.01>[Ns] db_incongruent;
+  vector<lower=0, upper=1>[Ns] ndt_sub_tmp;
+  vector[Ns] ndt_beta_mod;
+  vector[Ns] ndt_beta_tt;
+  vector<lower=0>[Ns] db_intercept;
+  vector[Ns] db_beta_mod;
+  vector[Ns] db_beta_tt;
+  vector<lower=0>[Ns] dr_intercept;
+  vector[Ns] dr_beta_mod;
+  vector[Ns] dr_beta_tt;
 }
 
 transformed parameters {
-  vector[Ns] ndt_incongruent;
-  vector[Ns] ndt_congruent;
+  vector[Ns] ndt_intercept;
+  vector[Nt] db;
+  vector[Nt] dr;
+  vector[Nt] ndt_tmp;
+  vector[Nt] ndt;
+  vector[Nt] mu;
+  vector[Nt] lambda;
 
-  vector[Ni] mu_i;
-  vector[Nc] mu_c;
-  vector[Ni] lambda_i;
-  vector[Nc] lambda_c;
-  vector[Ni] shift_i;
-  vector[Nc] shift_c;
+  ndt_intercept = ndt_sub_tmp .* min_rt;
 
-  // transform constrained variable to actual non-decision time
-  ndt_congruent = ndt_con .* min_rt_c;
-  ndt_incongruent = ndt_inc .* min_rt_i;
+  db = db_intercept[sub_ix] .* exp(db_beta_tt[sub_ix] .* tt) .* exp(db_beta_mod[sub_ix] .* mod);
+  dr = dr_intercept[sub_ix] .* exp(dr_beta_tt[sub_ix] .* tt) .* exp(dr_beta_mod[sub_ix] .* mod);
 
-  // Up-sampled transformed parameters to every trial
-  mu_i = db_incongruent[ll_i] ./ dr_incongruent[ll_i];
-  mu_c = db_congruent[ll_c] ./ dr_congruent[ll_c];
-  lambda_i = db_incongruent[ll_i] .* db_incongruent[ll_i];
-  lambda_c = db_congruent[ll_c] .* db_congruent[ll_c];
-  shift_i = ndt_incongruent[ll_i];
-  shift_c = ndt_congruent[ll_c];
+  ndt_tmp = inv_logit(ndt_intercept[sub_ix] + ndt_beta_tt[sub_ix] .* tt + ndt_beta_mod[sub_ix] .* mod);
+  ndt = ndt_tmp .* min_rt[sub_ix];
+
+  mu = db ./ dr;
+  lambda = db .* db;
 }
 
 model {
 
   // Drift Rate Priors
-  dr_group_sigma_congruent ~ normal(0, 1);
-  dr_group_sigma_incongruent ~ normal(0, 1);
+  dr_group_sigma_intercept ~ normal(0, 1);
+  dr_group_sigma_beta_tt ~ normal(0, 1);
+  dr_group_mu_beta_tt ~ normal(0, 1);
+  dr_group_sigma_beta_mod ~ normal(0, 1);
+  dr_group_mu_beta_mod ~ normal(0, 1);
+  dr_group_mu_intercept ~ lognormal(3.25, .8);
 
-  dr_congruent ~ normal(dr_group_mu_congruent,
-                        square(dr_group_sigma_congruent));
-  dr_incongruent ~ normal(dr_group_mu_incongruent,
-                          square(dr_group_sigma_incongruent));
+  dr_intercept ~ normal(dr_group_mu_intercept,
+                        square(dr_group_sigma_intercept));
+  dr_beta_tt ~ normal(dr_group_mu_beta_tt,
+                      square(dr_group_sigma_beta_tt));
+  dr_beta_mod ~ normal(dr_group_mu_beta_mod,
+                      square(dr_group_sigma_beta_mod));
 
-  // decision boundary priors
-  db_group_sigma_congruent ~ normal(0, 1);
-  db_group_sigma_incongruent ~ normal(0, 1);
+  // Decision Boundary Priors
+  db_group_sigma_intercept ~ normal(0, 1);
+  db_group_sigma_beta_tt ~ normal(0, 1);
+  db_group_mu_beta_tt ~ normal(0, 1);
+  db_group_sigma_beta_mod ~ normal(0, 1);
+  db_group_mu_beta_mod ~ normal(0, 1);
+  db_group_mu_intercept ~ lognormal(0.3, .8);
 
-  db_congruent ~ normal(db_group_mu_congruent,
-                        square(db_group_sigma_congruent));
-  db_incongruent ~ normal(db_group_mu_incongruent,
-                          square(db_group_sigma_incongruent));
+  db_intercept ~ normal(db_group_mu_intercept,
+                        square(db_group_sigma_intercept));
+  db_beta_tt ~ normal(db_group_mu_beta_tt,
+                      square(db_group_sigma_beta_tt));
+  db_beta_mod ~ normal(db_group_mu_beta_mod,
+                      square(db_group_sigma_beta_mod));
 
-  // non-decision time priors
-  ndt_group_sigma_congruent ~ normal(0, .1);
-  ndt_group_sigma_incongruent ~ normal(0, .1);
+  // Non-Decision Time Priors
+  ndt_group_sigma_intercept ~ normal(0, 1);
+  ndt_group_sigma_beta_tt ~ normal(0, 1);
+  ndt_group_mu_beta_tt ~ normal(0, 1);
+  ndt_group_sigma_beta_mod ~ normal(0, 1);
+  ndt_group_mu_beta_mod ~ normal(0, 1);
+  ndt_group_mu_intercept ~ lognormal(0.3, .3);
 
-  ndt_congruent ~ normal(ndt_group_mu_congruent,
-                         square(ndt_group_sigma_congruent));
-  ndt_incongruent ~ normal(ndt_group_mu_incongruent,
-                           square(ndt_group_sigma_incongruent));
+  ndt_intercept ~ normal(ndt_group_mu_intercept,
+                         square(ndt_group_sigma_intercept));
+  ndt_beta_tt ~ normal(ndt_group_mu_beta_tt,
+                       square(ndt_group_sigma_beta_tt));
+  ndt_beta_mod ~ normal(ndt_group_mu_beta_mod,
+                        square(ndt_group_sigma_beta_mod));
 
   // wald likelihood
-  rt_c ~ wald(mu_c, lambda_c, shift_c);
-  rt_i ~ wald(mu_i, lambda_i, shift_i);
+  rt ~ wald(mu, lambda, ndt);
+
 }
 
 generated quantities {
-  real db_group_beta;
-  real dr_group_beta;
-  real ndt_group_beta;
-
-  vector[Ns] db_beta;
-  vector[Ns] dr_beta;
-  vector[Ns] ndt_beta;
-
-  vector[Nc + Ni] log_lik;
-
-  vector[Ni] rt_i_pred;
-  vector[Nc] rt_c_pred;
+  vector[Nt] log_lik;
+  vector[Nt] rt_pred;
 
   // Posterior Predictions
-  for (n in 1:Ni) {
-    rt_i_pred[n] = wald_rng(mu_i[n], lambda_i[n], shift_i[n]);
-  }
-  for (n in 1:Nc) {
-    rt_c_pred[n] = wald_rng(mu_c[n], lambda_c[n], shift_c[n]);
+  for (n in 1:Nt) {
+    rt_pred[n] = wald_rng(mu[n], lambda[n], ndt[n]);
   }
 
   // Log likelihood for loo and waic
-  log_lik = append_row(wald_ll(rt_c, mu_c, lambda_c, shift_c),
-                       wald_ll(rt_i, mu_i, lambda_i, shift_i));
-
-  // Group mean parameter differences between conditions
-  db_group_beta = db_group_mu_incongruent - db_group_mu_congruent;
-  dr_group_beta = dr_group_mu_incongruent - dr_group_mu_congruent;
-  ndt_group_beta = ndt_group_mu_incongruent - ndt_group_mu_congruent;
-
-  // Subject mean parameter differences between conditions
-  db_beta = db_incongruent - db_congruent;
-  dr_beta = dr_incongruent - dr_congruent;
-  ndt_beta = ndt_incongruent - ndt_congruent;
+  log_lik = wald_ll(rt, mu, lambda, ndt);
 }
 
