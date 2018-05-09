@@ -99,7 +99,7 @@ def extract_samples(fit, exclude=None):
     # create chain and warmup indicators
     tmp = [[i] * niter for i in range(1, nchains + 1)]
     df['chain'] = np.array(tmp).ravel()
-    tmp = [[1] * nwarmup + [0] * (niter - nwarmup)]
+    tmp = [1] * nwarmup + [0] * (niter - nwarmup)
     df['warmup'] = np.array(tmp * nchains)
     df['sample'] = np.tile(np.arange(1, niter + 1), nchains)
 
@@ -116,14 +116,6 @@ def extract_samples(fit, exclude=None):
         for pv in p_vars:
             ch_s = [sim[i]['chains'][pv] for i in range(nchains)]
             df[pv] = np.array(ch_s).ravel()
-
-    # extract nuts sampling parameters
-    nuts = fit.get_sampler_params()
-    for k in nuts[0].keys():
-        t = []
-        for i in range(nchains):
-            t.append(nuts[i][k])
-        df[k[:-2]] = np.ravel(t)
 
     return pd.DataFrame(df)
 
@@ -296,21 +288,21 @@ def plot_ppc(subject, behavior, samples):
     pred = pred[:, ix]
 
     sub_ix = behavior.participant_id == subject
-    pred = pred[:, sub_ix]
+    pred = pred[:, np.where(sub_ix)[0]]
     behavior = behavior[sub_ix]
 
     f, axs = plt.subplots(1, 2, figsize=(16, 6))
     for i, mod in enumerate(['eeg', 'fmri']):
         mod_ix = behavior.modality == mod
         mod_behavior = behavior[mod_ix]
-        mod_pred = pred[:, mod_ix]
+        mod_pred = pred[:, np.where(mod_ix)[0]]
 
         ax = axs[i]
         colors = ['b', 'r']
         for j, con in enumerate(['incongruent', 'congruent']):
             con_ix = mod_behavior.trial_type == con
             con_behavior = mod_behavior[con_ix]
-            con_pred = mod_pred[:, con_ix]
+            con_pred = mod_pred[:, np.where(con_ix)[0]]
 
             # plot behavior
             sns.distplot(con_behavior.response_time, color=colors[j], ax=ax)
@@ -318,9 +310,10 @@ def plot_ppc(subject, behavior, samples):
             # plot ppc samples
             ix = np.random.choice(con_pred.shape[0], 100, replace=False)
             for i in ix:
-                sns.kdeplot(con_pred[i, :], color=colors[j], alpha=0.05, ax=ax)
+                sns.kdeplot(con_pred[i, :], color=colors[j], alpha=0.07, ax=ax)
 
         ax.set_xlim((0, 1.75))
+        ax.set_ylim((0, 5))
         ax.legend(['incongruent', 'congruent'])
         ax.set_title(mod)
 
