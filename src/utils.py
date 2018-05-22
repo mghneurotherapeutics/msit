@@ -1,19 +1,25 @@
 import numpy as np
 import pandas as pd
-import pickle
 
 
 def exclude_subjects(subjects, mod, reset=False):
     """
-    :param subjects: List of participants to be excluded.
-    :type subjects: list
-    :param mod: The modality to exclude for (behavior_eeg, behavior_fmri,
-                fmri, or eeg).
-    :type mod: string
-    :param reset: Whether to clear existing exclusions prior to updating.
-    :type reset: boolean
+    Utility function to denote excluded subjects
 
-    :returns: None -- Updates the participants.tsv file with the exclusions
+    Parameters
+    ----------
+    subjects: list of str
+        The subjects to be excluded
+    mod: str
+        The modality they are being excluded base on. fmri, eeg, eeg_behavior,
+        or fmri_behavior
+    reset: boolean
+        Whether to remove past exclusions or append to them
+
+    Returns
+    -------
+    None
+        Updates the participants.tsv file with the exclusions
     """
 
     f = '../data/participants.tsv'
@@ -27,13 +33,21 @@ def exclude_subjects(subjects, mod, reset=False):
 
 def select_subjects(mod, exclude='auto'):
     """
-    :param mod: The modality to select subjects for
-    :type mod: str
-    :param exclude: Subjects to exclude. If None, defaults to all currently
-    specified in the participants.tsv file
-    :type exclude: list
+    Utility function to denote select out subjects by modality.
 
-    :returns: subject -- List of subjects not excluded for the given modality
+    Parameters
+    ----------
+    mod: str
+        The modality to select subjects for. fmri, eeg, or both
+    exclude: list or str
+        If list, all subjects who completed the given modality will be selected
+        if they are not in the provided list. 'auto' will only select subjects
+        who are not denoted as excluded in the participants.tsv file.
+
+    Returns
+    -------
+    list
+        The list of subjects who meet the modality and exclusion criteria
     """
     f = '../data/participants.tsv'
     sub_info = pd.read_csv(f, sep='\t')
@@ -66,30 +80,3 @@ def select_subjects(mod, exclude='auto'):
         subjects = list(sub_info.participant_id)
 
     return sorted(subjects)
-
-
-def drop_bad_trials(subject, behavior, epochs, layout, epo_type):
-
-    # drop non-responses from behavior
-    behavior = behavior[behavior.no_response != 1].reset_index()
-
-    # skip the first behavior response since eeg was started late
-    if subject == 'sub-pp012':
-        behavior = behavior.iloc[1:, :].reset_index()
-
-    # drop bad eeg trials from behavior
-    ar_file = layout.get(subject=subject,
-                         derivative='eeg_preprocessing',
-                         extensions='%s_ar.pkl' % epo_type)[0].filename
-    ar = pickle.load(open(ar_file, 'r'))
-    if len(ar.bad_epochs_idx) > 0:
-        behavior = behavior.drop(ar.bad_epochs_idx).reset_index()
-
-    # drop bad behavior trials from eeg and behavior
-    behavior_exclude = np.where(np.sum(behavior[['fast_rt', 'error',
-                                                 'post_error']],
-                                       axis=1))[0]
-    behavior = behavior.drop(behavior_exclude)
-    epochs.drop(behavior_exclude)
-
-    return behavior, epochs
