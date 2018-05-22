@@ -2,29 +2,6 @@ import numpy as np
 import pandas as pd
 import pickle
 
-CH_NAMES = ['Fp1', 'Fpz', 'Fp2',
-            'AF7', 'AF3', 'AFz',
-            'AF4', 'AF8', 'F7',
-            'F5', 'F3', 'F1', 'Fz',
-            'F2', 'F4', 'F6',
-            'F8', 'FT9', 'FT7',
-            'FC5', 'FC3', 'FC1',
-            'FCz', 'FC2', 'FC4',
-            'FC6', 'FT8', 'FT10',
-            'T9', 'T7', 'C5', 'C3',
-            'C1', 'Cz', 'C2', 'C4',
-            'C6', 'T8', 'T10',
-            'TP9', 'TP7', 'CP5',
-            'CP3', 'CP1', 'CPz',
-            'CP2', 'CP4', 'CP6',
-            'TP8', 'TP10', 'P9',
-            'P7', 'P5', 'P3',
-            'P1', 'Pz', 'P2', 'P4',
-            'P6', 'P8', 'P10',
-            'PO7', 'PO3', 'P0z',
-            'PO4', 'PO8', 'O1',
-            'Oz', 'O2', 'Iz']
-
 
 def exclude_subjects(subjects, mod, reset=False):
     """
@@ -60,7 +37,7 @@ def select_subjects(mod, exclude='auto'):
     """
     f = '../data/participants.tsv'
     sub_info = pd.read_csv(f, sep='\t')
-    
+
     # reduce to subjects who completed the given modality
     if mod == 'both':
         ix = np.array(sub_info['eeg'] + sub_info['fmri']) == 2
@@ -80,14 +57,14 @@ def select_subjects(mod, exclude='auto'):
             tmp1 = sub_info[sub_info['%s_exclude' % mod] == 1].participant_id
             tmp2 = sub_info[sub_info['behavior_%s_exclude' % mod] == 1].participant_id
             exclude = np.unique(list(tmp1) + list(tmp2))
-        
+
     # reduce to non-excluded subjects
     if len(exclude) > 1:
         keep_ix = ~sub_info.participant_id.isin(exclude)
         subjects = list(sub_info[keep_ix].participant_id)
     else:
         subjects = list(sub_info.participant_id)
-        
+
     return sorted(subjects)
 
 
